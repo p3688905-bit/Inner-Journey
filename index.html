@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>心‧路 ─ 日式視覺小說</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-tc@latest/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-tc@latest/700.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-tc@latest/900.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-tc@latest/index.css">
+<style>
+:root{--gold:#d9b64a;--ink:#0b0e17;--chh:94vh}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#000}
+body{font-family:'Noto Serif TC',serif;color:#e8e6df;user-select:none}
+#game{position:fixed;inset:0;overflow:hidden;cursor:pointer}
+#stage{position:absolute;inset:0}
+#bgWrap{position:absolute;inset:0;transition:filter 1.2s ease}
+.bgLayer{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 1.1s ease;transform:scale(1.02)}
+.bgLayer.on{opacity:1}
+#bgWrap.t-night{filter:brightness(.8) saturate(.9)}
+#bgWrap.t-day{filter:brightness(1.08) saturate(1.02)}
+#bgWrap.t-warm{filter:sepia(.22) saturate(1.05) brightness(1.02)}
+#bgWrap.t-dusk{filter:sepia(.32) hue-rotate(-12deg) brightness(.94)}
+#bgWrap.t-cold{filter:saturate(.72) brightness(.9) hue-rotate(8deg)}
+#bgWrap.t-dim{filter:brightness(.55) saturate(.85)}
+#cgLayer{position:absolute;inset:0;opacity:0;transition:opacity 1.4s ease;pointer-events:none}
+#cgLayer.on{opacity:1}
+#cgLayer img{width:100%;height:100%;object-fit:cover;animation:kenburns 18s ease-in-out infinite alternate}
+@keyframes kenburns{from{transform:scale(1.02)}to{transform:scale(1.12) translate(1.5%,-1%)}}
+#vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.42) 100%)}
+/* ---------- 人物立繪 ---------- */
+#charLayer{position:absolute;inset:0;pointer-events:none}
+.char{position:absolute;bottom:-2vh;width:var(--chh);height:var(--chh);opacity:0;transform:translateY(26px) scale(.985);
+ transition:opacity .5s ease,transform .5s ease,left .65s cubic-bezier(.4,.1,.2,1);will-change:left,opacity}
+.char.on{opacity:1;transform:translateY(0) scale(1)}
+.char.out{opacity:0;transform:translateY(14px) scale(.99)}
+.char.pos-center{left:calc(50% - var(--chh)/2)}
+.char.pos-left{left:1%}
+.char.pos-right{left:max(1%,calc(99% - var(--chh)))}
+.char .sprite{position:relative;width:100%;height:100%}
+.char .sprite img,.char .sprite svg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transition:opacity .35s ease;filter:drop-shadow(0 10px 26px rgba(0,0,0,.5))}
+/* ---------- fx ---------- */
+#flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+#flash.go{animation:flashA .6s ease}
+@keyframes flashA{0%{opacity:.95}100%{opacity:0}}
+#stage.shake{animation:shakeA .55s ease}
+@keyframes shakeA{0%,100%{transform:none}20%{transform:translate(-8px,4px)}40%{transform:translate(7px,-5px)}60%{transform:translate(-6px,3px)}80%{transform:translate(5px,-3px)}}
+#tunnelFx{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;overflow:hidden}
+#tunnelFx.go{animation:tunnelA 5.2s ease}
+@keyframes tunnelA{0%{opacity:0}12%{opacity:1}82%{opacity:1}100%{opacity:0}}
+#tunnelFx .streak{position:absolute;top:0;bottom:0;width:26%;background:linear-gradient(90deg,transparent,rgba(255,240,200,.14),transparent);transform:translateX(-120%)}
+#tunnelFx.go .streak{animation:streakA 1.1s linear infinite}
+#tunnelFx.go .streak:nth-child(2){animation-delay:.4s;top:20%;bottom:40%}
+#tunnelFx.go .streak:nth-child(3){animation-delay:.75s;top:55%;bottom:10%}
+@keyframes streakA{from{transform:translateX(-130%)}to{transform:translateX(520%)}}
+#newsOv{position:absolute;top:6%;left:50%;transform:translate(-50%,-30px);width:min(760px,92%);opacity:0;pointer-events:none;transition:all .6s ease;z-index:30}
+#newsOv.on{opacity:1;transform:translate(-50%,0)}
+#newsOv .band{background:linear-gradient(90deg,#b3121b,#7d0e14);color:#fff;font-family:'Noto Sans TC';font-weight:700;letter-spacing:.35em;padding:6px 18px;font-size:13px}
+#newsOv .head{background:rgba(20,10,12,.88);border:1px solid rgba(255,90,90,.5);padding:14px 18px;font-size:clamp(14px,2.2vw,20px);font-weight:700;color:#ffd9d9;letter-spacing:.06em}
+#newsOv .sub{background:rgba(20,10,12,.7);padding:6px 18px;font-size:12px;color:#d8a8a8;font-family:'Noto Sans TC'}
+/* ---------- dialog ---------- */
+#dialog{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:min(1080px,95%);min-height:148px;background:linear-gradient(180deg,rgba(14,17,28,.86),rgba(9,11,20,.92));border:1px solid rgba(217,182,74,.35);border-radius:14px;backdrop-filter:blur(8px);padding:34px 40px 30px;opacity:0;transition:opacity .5s ease;z-index:40;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+#dialog.show{opacity:1}
+#nameplate{position:absolute;top:-17px;left:24px;padding:5px 22px;background:linear-gradient(180deg,#2a2436,#171320);border:1px solid rgba(217,182,74,.6);border-radius:6px;font-weight:700;font-size:16px;letter-spacing:.14em;color:var(--npc,#ffd9a0);box-shadow:0 4px 14px rgba(0,0,0,.45)}
+#nameplate.hide{display:none}
+#textbox{font-size:clamp(15px,1.9vw,19px);line-height:2.05;letter-spacing:.05em;min-height:78px;text-shadow:0 2px 6px rgba(0,0,0,.6)}
+#dialog.cls-think #textbox{font-style:italic;color:#c9d2e6}
+#dialog.cls-phone #textbox{font-style:italic;color:#bfe0ff}
+#dialog.cls-sms #textbox{color:#b8e6b8}
+#dialog.cls-sms #textbox::before{content:"✉ ";color:#7ec98f}
+#dialog.cls-news #textbox{color:#ffb4b4;font-weight:700;letter-spacing:.1em}
+#nextInd{position:absolute;right:20px;bottom:10px;color:var(--gold);font-size:13px;animation:blink 1s infinite;opacity:0}
+#nextInd.on{opacity:1}
+@keyframes blink{0%,100%{opacity:.15}50%{opacity:1}}
+#chapPill{position:absolute;top:14px;left:16px;z-index:45;padding:5px 16px;background:rgba(10,12,20,.6);border:1px solid rgba(217,182,74,.4);border-radius:999px;font-size:12.5px;letter-spacing:.2em;color:#e6d3a0;opacity:0;transition:opacity .6s;font-family:'Noto Sans TC'}
+#chapPill.on{opacity:1}
+#controls{position:absolute;top:12px;right:14px;z-index:60;display:none;gap:6px;align-items:center;font-family:'Noto Sans TC'}
+#controls.on{display:flex}
+#controls button{background:rgba(12,14,24,.66);color:#cfd3e0;border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;letter-spacing:.08em;transition:all .2s}
+#controls button:hover{color:#fff;border-color:rgba(217,182,74,.6)}
+#controls button.act{background:rgba(217,182,74,.25);color:#ffe6ad;border-color:var(--gold)}
+#vol{width:74px;accent-color:var(--gold);cursor:pointer}
+#chapCard{position:absolute;inset:0;z-index:70;background:radial-gradient(ellipse at center,rgba(20,16,28,.94),rgba(0,0,0,.97));display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;cursor:pointer}
+#chapCard.on{display:flex;animation:cardIn .8s ease}
+@keyframes cardIn{from{opacity:0}to{opacity:1}}
+#chapCard .no{font-size:15px;letter-spacing:.6em;color:var(--gold);font-family:'Noto Sans TC'}
+#chapCard .ti{font-size:clamp(30px,6vw,58px);font-weight:900;letter-spacing:.3em;text-indent:.3em;color:#f2ead8}
+#chapCard .line{width:120px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+#chapCard .hint{margin-top:26px;font-size:12px;color:#8a8fa0;letter-spacing:.3em;font-family:'Noto Sans TC'}
+#choiceLayer{position:absolute;inset:0;z-index:65;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(0,0,0,.35)}
+#choiceLayer.on{display:flex}
+#choiceLayer .q{font-size:14px;letter-spacing:.3em;color:#cbb98a;margin-bottom:8px}
+#choiceLayer button{width:min(560px,86%);padding:14px 20px;background:rgba(16,18,30,.85);border:1px solid rgba(217,182,74,.45);color:#eee6d2;font-size:16px;letter-spacing:.1em;border-radius:10px;cursor:pointer;font-family:'Noto Serif TC';transition:all .25s}
+#choiceLayer button:hover{background:rgba(217,182,74,.2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+#logModal{position:absolute;inset:0;z-index:80;background:rgba(5,6,12,.94);display:none;flex-direction:column;padding:60px 8vw;backdrop-filter:blur(6px)}
+#logModal.on{display:flex}
+#logModal h3{color:var(--gold);letter-spacing:.4em;margin-bottom:20px;font-size:15px}
+#logBody{overflow-y:auto;flex:1;padding-right:12px}
+#logBody .ln{margin-bottom:14px;line-height:1.8;font-size:15px}
+#logBody .ln b{color:var(--gold);margin-right:10px;font-size:13px}
+#logClose{position:absolute;top:20px;right:26px;background:none;border:1px solid rgba(255,255,255,.3);color:#ccc;border-radius:8px;padding:6px 14px;cursor:pointer}
+#titleScreen{position:absolute;inset:0;z-index:90;overflow:hidden}
+#titleScreen .bgimg{position:absolute;inset:0;background-size:cover;background-position:center;animation:kenburns 26s ease-in-out infinite alternate}
+#titleScreen .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15) 0%,rgba(0,0,0,.05) 40%,rgba(5,6,14,.88) 100%)}
+#titleScreen .inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:6vh;gap:10px}
+#titleScreen .t1{font-size:clamp(52px,10vw,104px);font-weight:900;letter-spacing:.28em;text-indent:.28em;color:#f6efdd;text-shadow:0 4px 30px rgba(0,0,0,.7),0 0 60px rgba(255,170,80,.25)}
+#titleScreen .t2{font-size:clamp(12px,1.8vw,16px);letter-spacing:.42em;color:#d8c9a4;text-shadow:0 2px 10px #000}
+#titleScreen .cred{font-size:11px;color:#9aa0b0;letter-spacing:.2em;font-family:'Noto Sans TC'}
+#titleBtns{display:flex;flex-direction:column;gap:10px;margin-top:22px;align-items:center}
+#titleBtns button{width:230px;padding:11px 0;background:rgba(12,14,24,.72);border:1px solid rgba(217,182,74,.55);color:#f0e6cd;font-size:16px;letter-spacing:.35em;text-indent:.35em;border-radius:10px;cursor:pointer;font-family:'Noto Serif TC';transition:all .25s}
+#titleBtns button:hover{background:rgba(217,182,74,.22);transform:translateY(-2px)}
+#titleBtns button:disabled{opacity:.35;cursor:default;transform:none}
+#titleScreen .note{margin-top:12px;font-size:11px;color:#8d93a6;letter-spacing:.15em;font-family:'Noto Sans TC'}
+#loadTip{font-size:11px;color:#6f7688;letter-spacing:.12em;font-family:'Noto Sans TC';min-height:16px}
+#chapSelect{position:absolute;inset:0;z-index:95;background:rgba(4,5,10,.96);display:none;flex-direction:column;align-items:center;padding-top:9vh;gap:10px}
+#chapSelect.on{display:flex}
+#chapSelect h3{letter-spacing:.5em;color:var(--gold);margin-bottom:18px}
+#chapSelect button{width:min(480px,86%);padding:11px;background:rgba(16,18,30,.8);border:1px solid rgba(255,255,255,.16);color:#ddd6c4;border-radius:9px;font-size:15px;letter-spacing:.15em;cursor:pointer;font-family:'Noto Serif TC'}
+#chapSelect button:hover:not(:disabled){border-color:var(--gold);background:rgba(217,182,74,.15)}
+#chapSelect button:disabled{opacity:.3;cursor:default}
+#chapSelect .back{width:auto;padding:8px 26px;margin-top:16px;border-color:rgba(217,182,74,.5);color:#e6d3a0}
+#endScreen{position:absolute;inset:0;z-index:92;background:#05060c;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center}
+#endScreen.on{display:flex;animation:cardIn 2s ease}
+#endScreen .big{font-size:clamp(40px,7vw,72px);font-weight:900;letter-spacing:.4em;text-indent:.4em;color:#f2ead8}
+#endScreen .poem{font-size:clamp(13px,1.8vw,17px);line-height:2.3;color:#b9bfcf;letter-spacing:.12em}
+#endScreen .fin{color:var(--gold);letter-spacing:.5em;font-size:14px;margin-top:8px}
+#endScreen button{margin-top:18px;width:220px;padding:10px;background:rgba(12,14,24,.7);border:1px solid rgba(217,182,74,.5);color:#f0e6cd;letter-spacing:.3em;text-indent:.3em;border-radius:9px;cursor:pointer;font-family:'Noto Serif TC'}
+#endScreen button:hover{background:rgba(217,182,74,.2)}
+@media (max-width:700px){:root{--chh:72vh}#dialog{padding:28px 22px 24px;min-height:130px}}
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="stage">
+    <div id="bgWrap"><div class="bgLayer" id="bgA"></div><div class="bgLayer" id="bgB"></div></div>
+    <div id="cgLayer"></div>
+    <div id="charLayer"></div>
+    <div id="tunnelFx"><div class="streak"></div><div class="streak"></div><div class="streak"></div></div>
+    <div id="vignette"></div>
+  </div>
+  <div id="flash"></div>
+  <div id="newsOv"><div class="band">突發新聞</div><div class="head">臺鐵東線重大出軌事故　傷亡慘重</div><div class="sub">事故地點：花蓮・鳳林段　詳細情況持續更新中</div></div>
+  <div id="chapPill"></div>
+  <div id="dialog"><div id="nameplate" class="hide"></div><div id="textbox"></div><div id="nextInd">▼</div></div>
+  <div id="controls">
+    <button id="btnAuto">AUTO</button><button id="btnSkip">SKIP</button><button id="btnLog">LOG</button>
+    <button id="btnMusic">♪</button><input id="vol" type="range" min="0" max="100" value="60">
+  </div>
+  <div id="choiceLayer"></div>
+  <div id="chapCard"></div>
+  <div id="logModal"><h3>對話紀錄</h3><div id="logBody"></div><button id="logClose">關閉</button></div>
+  <div id="titleScreen">
+    <div class="bgimg"></div><div class="shade"></div>
+    <div class="inner">
+      <div class="cred">原作小說改編・視覺小說</div>
+      <div class="t1">心‧路</div>
+      <div class="t2">一條鐵路，承載傷痕與希望</div>
+      <div id="titleBtns">
+        <button id="btnStart">開始遊戲</button>
+        <button id="btnCont">繼續閱讀</button>
+        <button id="btnChap">章節選擇</button>
+      </div>
+      <div id="loadTip">立繪去背處理中……</div>
+      <div class="note">♪ 本作含自動演奏配樂・建議開啟聲音・點擊／空白鍵前進</div>
+    </div>
+  </div>
+  <div id="chapSelect"><h3>章節選擇</h3><div id="chapList"></div><button class="back" id="chapBack">返回</button></div>
+  <div id="endScreen">
+    <div class="big">心‧路</div>
+    <div class="poem">火車進入隧道，從光亮變成黑暗。<br>火車穿過隧道，從黑暗變回光亮。<br>而人與人之間的路，斷了之後，<br>又該在哪一站，重新接上？</div>
+    <div class="fin">─ END ─</div>
+    <button id="btnAgain">重新開始</button>
+    <button id="btnTitle2">回到標題</button>
+  </div>
+</div>
+<script>
+/* ================= utils ================= */
+let _uid=0; const uid=()=>'q'+(++_uid);
+function shade(hex,f){const n=parseInt(hex.slice(1),16);const r=(n>>16)&255,g=(n>>8)&255,b=n&255;return `rgb(${r*f|0},${g*f|0},${b*f|0})`;}
+const $=id=>document.getElementById(id);
+/* ================= images ================= */
+const BG={
+ title:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1bf55df9e-038a-4bc9-aa35-b51b84655ec7.png',
+ office:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1c842e1c8-d7c8-46d7-b3b2-d829b9a66ed3.png',
+ elevator:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1367fff9a-9e83-470b-8c86-c1775a691fc8.png',
+ bedroom:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/19d599c17-c866-45d3-8fab-60434d22b3df.png',
+ town:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1b01a3380-b04c-4313-98c0-bdb376e52bef.png',
+ bus:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1c8b41778-3113-4a03-9d6a-93bfa32b99a7.png',
+ yard:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/18ca71620-a7b6-48ae-9d56-c8694081943b.png',
+ room:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1329c6d98-1748-4da6-b9c2-a6a6737721d7.png',
+ train:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/18e4ca264-106b-46a4-994f-9192d7c4e86d.png',
+ hosp:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1c1f528a7-cb6b-41f9-be99-d1d86a4ac9da.png'
+};
+const CG={hospital:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/178b809a3-d382-4d7e-910e-6a0ba1b0f647.png'};
+const CIMG={
+ liu_ol_n:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1bb5be5d0-f4cf-4662-8ef3-9d24aaddab8a.png',
+ liu_ol_c:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1c36b1244-68a2-49b5-8ec0-b21dbaf5059a.png',
+ liu_ol_s:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/132f4eb69-653f-4494-ba00-59dafccfbb8d.png',
+ liu_u_n:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1d3d17210-bcb8-4a03-a200-1f377f708190.png',
+ liu_u_s:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/153d27e85-153c-44a4-9bb8-0a03ecbf1f4e.png',
+ liu_home_n:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1a6a1f589-87d0-4094-9592-c372ef073277.png',
+ liu_home_mask:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1e3da2978-4eb7-4d52-9742-e878fa7c937f.png',
+ liu_trip:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/169a69bb8-1606-470e-b8ad-be2dfadc2bce.png',
+ guard:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1aff2efec-b423-4eb7-9b66-c6ef25008f45.png',
+ hua:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1d600a90b-1d23-4cac-8f91-f77e64b39210.png',
+ bro:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/14b9a5c79-b41e-49ab-a2a1-362e0f7a8f03.png',
+ mom:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/1c9d3ed14-172b-4c6b-a0e1-4c62ef057b07.png',
+ tea:'https://image.qwenlm.ai/public_source/00b25c30-e70e-4ece-af0c-dec5724aa441/11281753b-8e0e-43f4-b9b2-9d0714804dc1.png'
+};
+Object.values(CIMG).forEach(u=>{const im=new Image();im.src=u;});
+function spriteKey(id,expr,outfit){
+ if(id==='liu'){
+  if(outfit==='uniform')return ['shock','sad','worried','cry','angry','cold'].includes(expr)?'liu_u_s':'liu_u_n';
+  if(outfit==='home')return expr==='mask'?'liu_home_mask':'liu_home_n';
+  if(outfit==='trip')return 'liu_trip';
+  if(['cold','angry','grit'].includes(expr))return 'liu_ol_c';
+  if(['sad','worried','cry','shock'].includes(expr))return 'liu_ol_s';
+  return 'liu_ol_n';
+ }
+ if(id==='guard')return 'guard';
+ if(id==='hua')return 'hua';
+ if(id==='bro')return 'bro';
+ if(id==='mom')return 'mom';
+ if(id==='tea')return 'tea';
+ return 'liu_ol_n';
+}
+/* ================================================================
+   立繪去背（第四版・保護米白針織衫等淺色衣物）：
+   1) 四角取樣背景參考色
+   2) 邊界種子 flood-fill：
+      ・嚴格：亮度>200、飽和<22、且接近背景參考色（distRef<50）
+      ・漸層擴張：亮度>150、飽和<26、與相鄰已去背像素色距<40、
+        且仍接近背景參考色（distRef<50）
+      → 米白針織衫（飽和≈27）與皮膚（飽和更高）不會被誤判，
+        只有真正的中性白／灰背景會被移除。
+   3) 邊緣修整：僅移除「純中性、幾乎等於背景色」且緊鄰去背區
+      的像素；角色本體一律完全不透明。
+================================================================ */
+const SPRITE_T={};
+function makeTransparent(key,url){
+ return new Promise(res=>{
+  const img=new Image();img.crossOrigin='anonymous';
+  img.onload=()=>{try{
+   const c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+   const x=c.getContext('2d');x.drawImage(img,0,0);
+   const d=x.getImageData(0,0,c.width,c.height),data=d.data,w=c.width,h=c.height,N=w*h;
+   const lum=i=>(data[i]*299+data[i+1]*587+data[i+2]*114)/1000;
+   const chr=i=>Math.max(data[i],data[i+1],data[i+2])-Math.min(data[i],data[i+1],data[i+2]);
+   const dist=(i,j)=>{const a=data[i]-data[j],b=data[i+1]-data[j+1],e=data[i+2]-data[j+2];return Math.sqrt(a*a+b*b+e*e);};
+   const refs=[];
+   [[1,1],[w-9,1],[1,h-9],[w-9,h-9]].forEach(([cx,cy])=>{let r=0,g=0,b=0,n=0;
+     for(let yy=cy;yy<cy+8&&yy<h;yy++)for(let xx=cx;xx<cx+8&&xx<w;xx++){const i=(yy*w+xx)*4;r+=data[i];g+=data[i+1];b+=data[i+2];n++;}
+     refs.push([r/n,g/n,b/n]);});
+   const distRef=i=>{let m=1e9;for(const rc of refs){const a=data[i]-rc[0],b=data[i+1]-rc[1],e=data[i+2]-rc[2];const dd=a*a+b*b+e*e;if(dd<m)m=dd;}return Math.sqrt(m);};
+   const bg=new Uint8Array(N),stack=[];
+   const isStrict=i=>lum(i)>200&&chr(i)<22&&distRef(i)<50;
+   const seed=p=>{if(!bg[p]&&isStrict(p*4)){bg[p]=1;stack.push(p);}};
+   for(let px=0;px<w;px++){seed(px);seed((h-1)*w+px);}
+   for(let py=0;py<h;py++){seed(py*w);seed(py*w+w-1);}
+   while(stack.length){
+     const p=stack.pop(),i=p*4,x0=p%w,y0=(p/w)|0;
+     data[i+3]=0;
+     const nbs=[];
+     if(x0>0)nbs.push(p-1);if(x0<w-1)nbs.push(p+1);if(y0>0)nbs.push(p-w);if(y0<h-1)nbs.push(p+w);
+     for(const q of nbs){
+       if(bg[q])continue;
+       const j=q*4;
+       if(isStrict(j)||(lum(j)>150&&chr(j)<26&&dist(i,j)<40&&distRef(j)<50)){bg[q]=1;stack.push(q);}
+     }
+   }
+   /* 邊緣修整：僅移除純中性、幾乎等於背景色且緊鄰去背區的像素 */
+   const a2=new Uint8ClampedArray(N);
+   for(let p=0;p<N;p++)a2[p]=data[p*4+3];
+   for(let p=0;p<N;p++){
+     if(bg[p])continue;
+     const i=p*4;
+     if(!(lum(i)>205&&chr(i)<14&&distRef(i)<26))continue;
+     let rim=false;
+     const x0=p%w,y0=(p/w)|0;
+     for(let dy=-2;dy<=2&&!rim;dy++)for(let dx=-2;dx<=2;dx++){
+       const nx=x0+dx,ny=y0+dy;
+       if(nx<0||ny<0||nx>=w||ny>=h)continue;
+       if(bg[ny*w+nx]){rim=true;break;}
+     }
+     if(rim)a2[p]=0;
+   }
+   for(let p=0;p<N;p++)data[p*4+3]=a2[p];
+   x.putImageData(d,0,0);
+   SPRITE_T[key]=c.toDataURL('image/png');
+   document.querySelectorAll('img[data-skey="'+key+'"]').forEach(im=>{im.src=SPRITE_T[key];});
+  }catch(e){}res();};
+  img.onerror=()=>res();
+  img.src=url;
+ });
+}
+(async function(){
+ await Promise.all(Object.keys(CIMG).map(k=>makeTransparent(k,CIMG[k])));
+ $('loadTip').textContent='立繪就緒・點擊開始';
+})();
+/* ================= music engine ================= */
+const NOTE_BASE={C:0,'C#':1,D:2,'D#':3,E:4,F:5,'F#':6,G:7,'G#':8,A:9,'A#':10,B:11};
+function nf(n){const m=n.match(/^([A-G]#?)(-?\d)$/);const semi=NOTE_BASE[m[1]]+(+m[2]+1)*12;return 440*Math.pow(2,(semi-69)/12);}
+const AU={
+ ctx:null,master:null,delay:null,gainNode:null,current:null,timer:null,stepBeat:0,nextTime:0,muted:false,vol:.6,
+ init(){ if(this.ctx)return; const C=window.AudioContext||window.webkitAudioContext; this.ctx=new C();
+  this.master=this.ctx.createGain(); this.master.gain.value=this.vol*.9; this.master.connect(this.ctx.destination);
+  this.delay=this.ctx.createDelay(1); this.delay.delayTime.value=.27;
+  const fb=this.ctx.createGain(); fb.gain.value=.32; this.delay.connect(fb); fb.connect(this.delay);
+  const dg=this.ctx.createGain(); dg.gain.value=.25; this.delay.connect(dg); dg.connect(this.master);
+ },
+ setVol(v){this.vol=v; if(this.master)this.master.gain.value=this.muted?0:v*.9;},
+ playEv(t,n,dSec,v,inst){
+  const c=this.ctx,f=nf(n),g=c.createGain();
+  g.gain.setValueAtTime(.0001,t);
+  const peak=v*.4;
+  if(inst==='s'){g.gain.linearRampToValueAtTime(peak*.55,t+Math.min(1.1,dSec*.35));g.gain.setTargetAtTime(.0001,t+dSec,.5);}
+  else{g.gain.linearRampToValueAtTime(peak,t+.012);g.gain.setTargetAtTime(.0001,t+Math.max(.12,dSec*.85),.2);}
+  g.connect(this.gainNode);
+  const send=c.createGain(); send.gain.value=inst==='s'?.12:.3; g.connect(send); send.connect(this.delay);
+  const o1=c.createOscillator(); o1.type=inst==='s'?'sine':'triangle'; o1.frequency.value=f; o1.connect(g);
+  const o2=c.createOscillator(); o2.type='sine'; o2.frequency.value=f*2;
+  const g2=c.createGain(); g2.gain.value=.35; o2.connect(g2); g2.connect(g);
+  const stop=t+dSec+2.5; o1.start(t);o2.start(t);o1.stop(stop);o2.stop(stop);
+ },
+ play(name){
+  if(!this.ctx||this.current===name)return;
+  if(this.gainNode){const old=this.gainNode; old.gain.setTargetAtTime(0,this.ctx.currentTime,.4); setTimeout(()=>{try{old.disconnect()}catch(e){}},1600);}
+  const tr=TRACKS[name]; if(!tr)return;
+  const g=this.ctx.createGain(); g.gain.value=0; g.connect(this.master); g.gain.setTargetAtTime(1,this.ctx.currentTime,.7);
+  this.gainNode=g; this.current=name; this.stepBeat=0; this.nextTime=this.ctx.currentTime+.1;
+  const map={}; tr.ev.forEach(e=>{(map[e[0]]=map[e[0]]||[]).push(e);}); this.map=map; this.tr=tr;
+  clearInterval(this.timer); this.timer=setInterval(()=>this.sched(),40);
+ },
+ sched(){
+  const stepDur=30/this.tr.bpm;
+  while(this.nextTime<this.ctx.currentTime+.8){
+    const evs=this.map[this.stepBeat];
+    if(evs)evs.forEach(e=>this.playEv(this.nextTime,e[1],e[2]*stepDur,e[3],e[4]));
+    this.stepBeat=(this.stepBeat+1)%this.tr.steps; this.nextTime+=stepDur;
+  }
+ }
+};
+function buildTrack(bpm,steps,bars,mel){
+ const e=[]; const A=(s,n,d,v,i)=>e.push([s,n,d,v,i]);
+ bars.forEach(b=>{A(b[0],b[1],14,.4,'s');A(b[0],b[2][0],14,.11,'s');A(b[0],b[2][1],14,.09,'s');A(b[0],b[2][2],14,.09,'s');
+  for(let k=0;k<7;k++)A(b[0]+2+k*2,b[2][k%4],1.6,.22);});
+ mel.forEach(m=>A(m[0],m[1],m[2],m[3]));
+ return {bpm,steps,ev:e};
+}
+const TRACKS={
+ title:buildTrack(84,64,
+  [[0,'C3',['C4','E4','G4','C5']],[16,'G2',['G3','B3','D4','G4']],[32,'A2',['A3','C4','E4','A4']],[48,'F2',['F3','A3','C4','F4']]],
+  [[2,'E4',4,.8],[6,'G4',3,.75],[10,'C5',4,.8],[14,'D5',2,.7],[18,'B4',4,.8],[22,'G4',3,.75],[26,'D5',4,.8],[30,'B4',2,.6],[34,'A4',4,.8],[38,'C5',3,.75],[42,'E5',4,.8],[46,'C5',2,.6],[50,'C5',4,.8],[54,'A4',3,.75],[58,'G4',6,.8]]),
+ main:buildTrack(66,64,
+  [[0,'A2',['A3','E4','A4','C5']],[16,'F2',['F3','C4','F4','A4']],[32,'C3',['C4','G4','E4','G4']],[48,'E2',['E3','B3','G#4','B3']]],
+  [[4,'E4',4,.8],[10,'A4',2,.7],[12,'B4',4,.75],[20,'C5',4,.8],[26,'A4',2,.7],[28,'G4',4,.75],[36,'E4',4,.75],[42,'G4',2,.7],[44,'A4',4,.75],[52,'B4',4,.8],[58,'G#4',6,.75]]),
+ warm:buildTrack(78,64,
+  [[0,'F2',['F3','A3','C4','F4']],[16,'A2',['A3','C4','E4','A4']],[32,'A#2',['A#3','D4','F4','A#4']],[48,'C3',['C4','E4','G4','C5']]],
+  [[2,'A4',4,.8],[8,'C5',4,.75],[12,'D5',3,.7],[18,'C5',4,.8],[24,'A4',4,.75],[28,'G4',2,.65],[34,'D5',4,.8],[40,'F5',4,.75],[44,'D5',2,.65],[46,'C5',2,.6],[50,'G4',4,.75],[56,'C5',6,.7]]),
+ dark:{bpm:54,steps:32,ev:[[0,'A1',28,.5,'s'],[0,'A2',28,.18,'s'],[4,'A3',5,.4],[11,'C4',5,.35],[14,'E5',3,.13],[19,'B3',5,.35],[27,'E3',6,.4]]}
+};
+function sfx(id){const c=AU.ctx;if(!c)return;const t=c.currentTime;
+ if(id==='ring'){for(let i=0;i<2;i++){const st=t+i*.95;[880,660].forEach(f=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(.0001,st);g.gain.linearRampToValueAtTime(.1,st+.02);g.gain.setTargetAtTime(.0001,st+.55,.08);o.connect(g);g.connect(AU.master);o.start(st);o.stop(st+.9);});}}
+ else if(id==='msg'){const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(1320,t);o.frequency.exponentialRampToValueAtTime(880,t+.12);g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.14,t+.015);g.gain.setTargetAtTime(.0001,t+.15,.06);o.connect(g);g.connect(AU.master);o.start(t);o.stop(t+.4);}
+ else if(id==='boom'){const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(38,t+.9);g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.5,t+.02);g.gain.setTargetAtTime(.0001,t+.9,.2);o.connect(g);g.connect(AU.master);o.start(t);o.stop(t+2);}
+ else if(id==='chime'){[1568,2093].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;const st=t+i*.12;g.gain.setValueAtTime(.0001,st);g.gain.linearRampToValueAtTime(.1,st+.01);g.gain.setTargetAtTime(.0001,st+.6,.15);o.connect(g);g.connect(AU.master);o.start(st);o.stop(st+1.4);});}
+}
+/* ================= SVG 備用立繪 ================= */
+const wrap=inner=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 640">'+inner+'</svg>';
+const EXPR={normal:{brow:'flat',eye:'open',mouth:'flat'},soft:{brow:'flat',eye:'open',mouth:'smile',blush:1},smile:{brow:'raised',eye:'closed',mouth:'smile'},grin:{brow:'raised',eye:'closed',mouth:'grin'},happy:{brow:'raised',eye:'closed',mouth:'grin',blush:1},sad:{brow:'sad',eye:'droop',mouth:'frown'},cry:{brow:'sad',eye:'droop',mouth:'frown',tear:1},shock:{brow:'raised',eye:'wide',mouth:'open'},angry:{brow:'angry',eye:'glare',mouth:'grit'},cold:{brow:'flat',eye:'half',mouth:'flat'},tired:{brow:'flat',eye:'droop',mouth:'flat',underEye:1},worried:{brow:'sad',eye:'open',mouth:'flat',sweat:1},mask:{brow:'flat',eye:'open',mouth:'flat'}};
+function faceSVG(o){
+ const fy=o.fy||152,ex=EXPR[o.expr]||EXPR.normal,es=o.eyeScale||1,bc=o.browColor||'#4a3430',L='#241a20';
+ function brow(cx,t,dir){let d;
+  if(t==='raised')d=`M${cx-11} ${fy-18} Q${cx} ${fy-24} ${cx+11} ${fy-18}`;
+  else if(t==='sad')d=dir<0?`M${cx-11} ${fy-9} Q${cx} ${fy-13} ${cx+11} ${fy-19}`:`M${cx+11} ${fy-9} Q${cx} ${fy-13} ${cx-11} ${fy-19}`;
+  else if(t==='angry')d=dir<0?`M${cx-11} ${fy-20} Q${cx} ${fy-16} ${cx+11} ${fy-10}`:`M${cx+11} ${fy-20} Q${cx} ${fy-16} ${cx-11} ${fy-10}`;
+  else d=`M${cx-11} ${fy-11} Q${cx} ${fy-16} ${cx+11} ${fy-12}`;
+  return `<path d="${d}" stroke="${bc}" stroke-width="3.2" fill="none" stroke-linecap="round"/>`;}
+ function eye(cx,cy,type,dir,ir){const r=x=>x*es;let s='';
+  if(type==='closed')return `<path d="M${cx-12} ${cy+2} Q${cx} ${cy-9} ${cx+12} ${cy+2}" stroke="${L}" stroke-width="3.6" fill="none" stroke-linecap="round"/>`;
+  if(type==='wide'){s+=`<ellipse cx="${cx}" cy="${cy}" rx="${r(12)}" ry="${r(14)}" fill="#fff"/><circle cx="${cx}" cy="${cy+1}" r="${r(5.5)}" fill="${ir}"/><circle cx="${cx}" cy="${cy+1}" r="${r(2.4)}" fill="#1a1016"/><circle cx="${cx-3}" cy="${cy-4}" r="2.2" fill="#fff" opacity=".95"/><path d="M${cx-13} ${cy-9} Q${cx} ${cy-17} ${cx+13} ${cy-9}" stroke="${L}" stroke-width="3.4" fill="none" stroke-linecap="round"/>`;return s;}
+  if(type==='half'){s+=`<ellipse cx="${cx}" cy="${cy+2}" rx="${r(10.5)}" ry="${r(8)}" fill="#fff"/><circle cx="${cx}" cy="${cy+3}" r="${r(6)}" fill="${ir}"/><circle cx="${cx}" cy="${cy+3}" r="${r(2.5)}" fill="#1a1016"/><circle cx="${cx-2.5}" cy="${cy}" r="1.8" fill="#fff" opacity=".9"/><path d="M${cx-12} ${cy-3} Q${cx} ${cy-8} ${cx+12} ${cy-3}" stroke="${L}" stroke-width="3.6" fill="none" stroke-linecap="round"/>`;return s;}
+  if(type==='droop'){const o1=dir<0?`M${cx-12} ${cy-1} Q${cx} ${cy-9} ${cx+12} ${cy-7}`:`M${cx+12} ${cy-1} Q${cx} ${cy-9} ${cx-12} ${cy-7}`;
+   s+=`<ellipse cx="${cx}" cy="${cy+3}" rx="${r(10)}" ry="${r(9)}" fill="#fff"/><circle cx="${cx+dir*1.5}" cy="${cy+5}" r="${r(6)}" fill="${ir}"/><circle cx="${cx+dir*1.5}" cy="${cy+5}" r="${r(2.5)}" fill="#1a1016"/><circle cx="${cx-2.5}" cy="${cy+1}" r="1.7" fill="#fff" opacity=".9"/><path d="${o1}" stroke="${L}" stroke-width="3.4" fill="none" stroke-linecap="round"/>`;return s;}
+  s+=`<ellipse cx="${cx}" cy="${cy}" rx="${r(10.5)}" ry="${r(12.5)}" fill="#fff"/><circle cx="${cx+dir}" cy="${cy+1.5}" r="${r(7.4)}" fill="${ir}"/><circle cx="${cx+dir}" cy="${cy+1.5}" r="${r(3.1)}" fill="#1a1016"/><circle cx="${cx-3}" cy="${cy-3}" r="2.2" fill="#fff" opacity=".95"/><circle cx="${cx+3.5}" cy="${cy+4}" r="1.2" fill="#fff" opacity=".7"/><path d="M${cx-12} ${cy-8} Q${cx} ${cy-15} ${cx+12} ${cy-8}" stroke="${L}" stroke-width="3.6" fill="none" stroke-linecap="round"/><path d="M${cx-9} ${cy+12} Q${cx} ${cy+14.5} ${cx+9} ${cy+12}" stroke="${L}" stroke-width="1.4" fill="none" opacity=".3"/>`;
+  if(type==='glare')s+=`<path d="${dir<0?`M${cx-12} ${cy-6} L${cx+12} ${cy-1}`:`M${cx+12} ${cy-6} L${cx-12} ${cy-1}`}" stroke="${L}" stroke-width="3" stroke-linecap="round" fill="none"/>`;
+  return s;}
+ function mouth(t,my){
+  if(t==='smile')return `<path d="M186 ${my-3} Q200 ${my+8} 214 ${my-3}" stroke="#b0575e" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  if(t==='frown')return `<path d="M188 ${my+5} Q200 ${my-4} 212 ${my+5}" stroke="#b0575e" stroke-width="2.8" fill="none" stroke-linecap="round"/>`;
+  if(t==='open'){const id=uid();return `<clipPath id="${id}"><ellipse cx="200" cy="${my+2}" rx="10" ry="12"/></clipPath><ellipse cx="200" cy="${my+2}" rx="10" ry="12" fill="#6b2731"/><g clip-path="url(#${id})"><rect x="188" y="${my-9}" width="24" height="7" fill="#fff"/></g>`;}
+  if(t==='grin'){const id=uid();return `<clipPath id="${id}"><path d="M181 ${my-3} Q200 ${my+22} 219 ${my-3} Q200 ${my+5} 181 ${my-3} Z"/></clipPath><path d="M181 ${my-3} Q200 ${my+22} 219 ${my-3} Q200 ${my+5} 181 ${my-3} Z" fill="#8c3038" stroke="#571d24" stroke-width="1.6"/><g clip-path="url(#${id})"><rect x="179" y="${my-6}" width="42" height="8.5" fill="#ffffff"/></g>`;}
+  if(t==='grit')return `<rect x="185" y="${my-5}" width="30" height="11" rx="4" fill="#fff" stroke="#4a2a30" stroke-width="2"/><path d="M193 ${my-5} v11 M200 ${my-5} v11 M207 ${my-5} v11" stroke="#4a2a30" stroke-width="1.2"/>`;
+  return `<path d="M189 ${my} Q200 ${my+2.5} 211 ${my}" stroke="#b0575e" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;}
+ let s='';
+ s+=`<ellipse cx="200" cy="${fy}" rx="63" ry="74" fill="${o.skin}"/>`;
+ s+=`<ellipse cx="137" cy="${fy+6}" rx="8" ry="12" fill="${o.skin}"/><ellipse cx="263" cy="${fy+6}" rx="8" ry="12" fill="${o.skin}"/>`;
+ s+=brow(168,ex.brow,-1)+brow(232,ex.brow,1);
+ s+=eye(168,fy+8,ex.eye,-1,o.iris)+eye(232,fy+8,ex.eye,1,o.iris);
+ s+=`<path d="M200 ${fy+28} q3.5 5 .5 9" stroke="${shade(o.skin,.78)}" stroke-width="1.6" fill="none" opacity=".7" stroke-linecap="round"/>`;
+ s+=mouth(ex.mouth,fy+54);
+ if(ex.blush)s+=`<ellipse cx="158" cy="${fy+40}" rx="12" ry="5.5" fill="#ff8f8f" opacity=".38"/><ellipse cx="242" cy="${fy+40}" rx="12" ry="5.5" fill="#ff8f8f" opacity=".38"/>`;
+ if(ex.tear)s+=`<path d="M162 ${fy+22} q-5 11 0 16 q6 -4 0 -16" fill="#a8dcff" opacity=".9"/>`;
+ if(ex.sweat)s+=`<path d="M266 ${fy-14} q7 11 0 16 q-7 -5 0 -16" fill="#bfe6ff" opacity=".9"/>`;
+ if(ex.underEye)s+=`<path d="M156 ${fy+22} q12 6 24 2 M220 ${fy+24} q12 4 24 -2" stroke="#c98a8a" stroke-width="1.6" fill="none" opacity=".4"/>`;
+ if(o.older)s+=`<path d="M170 ${fy+30} q-5 7 -1 12 M230 ${fy+30} q5 7 1 12" stroke="${shade(o.skin,.75)}" stroke-width="1.4" fill="none" opacity=".5"/>`;
+ return s;
+}
+function svgFallback(id,expr,outfit){
+ if(id==='guard'){return wrap(`<path d="M146 140 C146 94 168 72 200 72 C232 72 254 94 254 140 C240 118 222 110 200 110 C178 110 160 118 146 140 Z" fill="#d8dade"/><path d="M186 222 L214 222 L213 268 Q200 276 187 268 Z" fill="#f3d3b8"/><path d="M116 640 L116 396 C116 332 148 290 200 284 C252 290 284 332 284 396 L284 640 Z" fill="#2b3450"/><path d="M178 288 L200 330 L222 288 L200 300 Z" fill="#e8e6df"/>`+faceSVG({skin:'#f3d3b8',expr,iris:'#4a4a52',fy:152,older:true,browColor:'#9a9aa2'}));}
+ if(id==='hua'){return wrap(`<path d="M148 134 C148 92 168 68 200 66 C232 68 252 92 252 134 C240 112 222 104 200 104 C178 104 160 112 148 134 Z" fill="#161009"/><path d="M186 222 L214 222 L213 268 Q200 276 187 268 Z" fill="#a9714b"/><path d="M116 640 L116 396 C116 332 148 290 200 284 C252 290 284 332 284 396 L284 640 Z" fill="#5d6a48"/><path d="M180 290 L220 290 L200 332 Z" fill="#f4f2ec"/>`+faceSVG({skin:'#a9714b',expr,iris:'#2e1d14',fy:152,browColor:'#1d130c'}));}
+ if(id==='bro'){return wrap(`<path d="M148 366 C148 340 172 326 200 326 C228 326 252 340 252 366 L252 396 L148 396 Z" fill="#3f7d50"/><path d="M186 268 L214 268 L213 316 Q200 324 187 316 Z" fill="#b57c50"/><path d="M136 640 L136 424 C136 376 164 348 200 344 C236 348 264 376 264 424 L264 640 Z" fill="#f2c94c"/><path d="M164 352 C160 384 158 424 158 464 L178 466 C176 424 178 388 182 356 Z" fill="#3f7d50"/><path d="M236 352 C240 384 242 424 242 464 L222 466 C224 424 222 388 218 356 Z" fill="#3f7d50"/>`+faceSVG({skin:'#b57c50',expr,iris:'#2e1d14',fy:212,eyeScale:1.12,browColor:'#1d130c'})+`<path d="M142 214 C136 158 164 130 200 128 C236 130 264 158 258 214 C250 196 240 190 232 196 C226 182 214 180 206 190 C200 180 192 182 186 192 C178 184 168 190 162 200 C154 194 148 202 142 214 Z" fill="#191410"/>`);}
+ if(id==='mom'){return wrap(`<path d="M200 66 C138 66 118 118 122 176 C126 236 120 278 106 312 C140 330 168 334 200 334 C232 334 260 330 294 312 C280 278 274 236 278 176 C282 118 262 66 200 66 Z" fill="#6e4a38"/><path d="M186 222 L214 222 L213 268 Q200 276 187 268 Z" fill="#ffe3cd"/><path d="M118 640 L118 398 C118 334 150 292 200 286 C250 292 282 334 282 398 L282 640 Z" fill="#c4706a"/>`+faceSVG({skin:'#ffe3cd',expr,iris:'#5a4034',fy:152,older:true})+`<path d="M146 148 C142 102 168 76 200 74 C236 72 258 100 256 142 C244 118 230 112 214 118 C206 102 188 100 178 116 C168 108 156 118 150 138 Z" fill="#6e4a38"/>`);}
+ if(id==='tea'){return wrap(`<path d="M200 66 C140 66 120 116 124 172 C127 224 122 262 112 292 C142 308 170 312 200 312 C230 312 258 308 288 292 C278 262 273 224 276 172 C280 116 260 66 200 66 Z" fill="#4a3527"/><path d="M186 222 L214 222 L213 268 Q200 276 187 268 Z" fill="#f7dfc9"/><path d="M118 640 L118 398 C118 334 150 292 200 286 C250 292 282 334 282 398 L282 640 Z" fill="#57687c"/>`+faceSVG({skin:'#f7dfc9',expr,iris:'#4a3a30',fy:152})+`<g stroke="#39404c" stroke-width="2.6" fill="rgba(255,255,255,.10)"><rect x="148" y="147" width="40" height="27" rx="9"/><rect x="212" y="147" width="40" height="27" rx="9"/><path d="M188 158 h24" fill="none"/></g>`);}
+ const H=outfit==='uniform'?'#191410':'#262136';
+ let s=`<path d="M200 62 C130 62 108 122 114 186 C120 262 104 350 86 452 C130 470 170 476 200 476 C230 476 270 470 314 452 C296 350 280 262 286 186 C292 122 270 62 200 62 Z" fill="${H}"/><path d="M186 222 L214 222 L213 268 Q200 276 187 268 Z" fill="#ffead9"/>`;
+ if(outfit==='uniform')s+=`<path d="M120 640 L120 400 C120 336 150 292 200 286 C250 292 280 336 280 400 L280 640 Z" fill="#f7f6f2"/><path d="M200 308 L178 298 L183 320 Z" fill="#b23b4e"/><path d="M200 308 L222 298 L217 320 Z" fill="#b23b4e"/>`;
+ else if(outfit==='home')s+=`<path d="M120 640 L120 400 C120 336 150 292 200 286 C250 292 280 336 280 400 L280 640 Z" fill="#efe6d4"/><path d="M160 640 L160 560 L240 560 L240 640 Z" fill="#f0c8cf"/>`;
+ else s+=`<path d="M116 640 L116 396 C116 332 148 290 200 284 C252 290 284 332 284 396 L284 640 Z" fill="#262c40"/><path d="M174 290 L200 352 L226 290 L212 285 L200 302 L188 285 Z" fill="#f5f2ea"/>`;
+ s+=faceSVG({skin:'#ffead9',expr,iris:'#5b3a4a',fy:152});
+ if(outfit==='home'&&expr==='mask')s+=`<path d="M162 132 Q200 118 238 132 L232 208 Q200 228 168 208 Z" fill="#f7f9fa" stroke="#d8dde2" stroke-width="2"/><ellipse cx="168" cy="160" rx="14" ry="10" fill="#ffead9"/><ellipse cx="232" cy="160" rx="14" ry="10" fill="#ffead9"/>`;
+ if(outfit==='trip')s+=`<path d="M170 186 Q200 176 230 186 L224 224 Q200 238 176 224 Z" fill="#f4f6f8" stroke="#d8dde2" stroke-width="2"/><path d="M170 190 L140 176 M230 190 L260 176" stroke="#e8ecef" stroke-width="3"/>`;
+ s+=`<path d="M146 150 C140 100 166 74 200 72 C234 74 260 100 254 150 C248 134 240 124 233 130 C228 110 219 103 211 114 C206 98 194 98 189 114 C181 103 172 110 167 130 C160 124 152 134 146 150 Z" fill="${H}"/>`;
+ return wrap(s);
+}
+/* ================= script ================= */
+const say=(name,text,cls)=>({t:'say',name,text,cls});
+const SCRIPT=[
+ {t:'bg',src:BG.title,tone:'dim'},{t:'music',id:'title'},{t:'pause',ms:700},
+ say(null,'這是一個，關於「路」的故事。'),
+ say(null,'有人離家千里，用盡全力，只為了不再回去；'),
+ say(null,'卻也在某個時刻，被同一條路，輕輕地喚了回來。'),
+ {t:'chapter',num:'一',title:'深夜的辦公室'},
+ {t:'bg',src:BG.office,tone:'night'},{t:'music',id:'main'},
+ {t:'char',id:'liu',pos:'center',expr:'tired'},
+ say(null,'晚上十一點整。'),
+ say(null,'辦公室的人全走光了，唯有劉小姐一個人獨留筆電前。'),
+ {t:'char',id:'guard',pos:'right',expr:'smile'},
+ say(null,'巡邏的警衛晃著手電筒走了進來。'),
+ say('警衛','小姐，已經這麼晚了，怎麼還沒下班？'),
+ say(null,'劉小姐回過神來，看了下鬧鐘螢幕。'),
+ say('劉小姐','唉呦，都十一點多了，我都忙著改稿忘了時間。'),
+ say(null,'她急忙關上筆電、收拾東西，成為最後一個負責幫公司上鎖的人。'),
+ {t:'bg',src:BG.elevator,tone:'night'},
+ say(null,'警衛跟劉小姐搭同一部電梯下樓，偷偷從鏡子中瞄了一眼她妝飾得宜、卻隱藏不了疲累的臉龐，有一搭沒一搭的閒聊著。'),
+ say('警衛','明天開始放四天連假欸，從下午開始就陸陸續續有很多人提早下班了，小姐妳怎麼反過來加班啊？'),
+ {t:'choice',options:[
+  {text:'划起手機，不悅別人探測秘密',lines:[say(null,'這位OL似乎不悅別人探測她的秘密，打開手提包划起了愛瘋手機。'),say('劉小姐','（我的隱私，與你無關。）','think')]},
+  {text:'淡淡一笑，敷衍帶過',lines:[say(null,'劉小姐嘴角一揚，給了個最淺的微笑，卻沒有回答任何一個字。'),say('劉小姐','（……有些事，不知道比較好。）','think')]}
+ ]},
+ say(null,'電梯門打開後，高跟鞋嘎搭嘎搭的向外踏，將白髮老警衛遠遠甩在後方，就像對付那些討厭的渣男主角們。'),
+ {t:'clearChars'},{t:'char',id:'liu',pos:'center',expr:'cold'},
+ say('劉小姐','煩死了。'),
+ {t:'bg',src:BG.bedroom,tone:'night'},
+ {t:'char',id:'liu',pos:'center',expr:'mask',outfit:'home'},
+ say(null,'洗完澡的劉小姐敷著面膜躺在床上休息，眼前盡是朋友預備返鄉、出遊、品嘗美食的臉書貼文。'),
+ say(null,'雖然一點興趣都沒有，卻還是機械式地在大拇指上按讚。'),
+ say('劉小姐','（這只是例行的公關行程，確保自己仍在同一個圈子裡、關注同一個朋友圈，只是表面上的。）','think'),
+ say(null,'沒錯，劉小姐的外在就跟臺北女孩的都會時尚沒啥兩樣。'),
+ say(null,'但她內心並不像臺北的大眾運輸四通八達——'),
+ say(null,'反而是公寓裡的，死巷子。'),
+ say(null,'這跟她過往的故事有關係。'),
+ {t:'chapter',num:'二',title:'故鄉的消息'},
+ {t:'bg',src:BG.bedroom,tone:'night'},{t:'music',id:'main'},
+ {t:'char',id:'liu',pos:'center',expr:'tired',outfit:'home'},
+ say(null,'劉小姐老家在花蓮。跟所有的北漂族一樣，她為了追求更好的理想與生活品質，大學畢業後選擇擠在臺北某區的小套房中。'),
+ say(null,'故鄉的風景雖好，帶給劉小姐的，卻只有無數的煩惱和不開心。'),
+ say('劉小姐','（所以，就算房子再小、物價再高，人際間的關係越來越冷漠、虛偽……）','think'),
+ say('劉小姐','（我還是覺得這方寸之地，是專屬自己的小淨土。）','think'),
+ say(null,'洗衣機內的衣服還沒晾呢，將近入眠的劉小姐努力拖起身軀把家事處理好。'),
+ say(null,'鑽進被窩的一瞬間，她不禁舒了一口長長的大氣。'),
+ {t:'char',id:'liu',pos:'center',expr:'soft',outfit:'home'},
+ say('劉小姐','終於解脫了，真好。'),
+ say(null,'——隔日中午。'),
+ {t:'bg',src:BG.bedroom,tone:'day'},
+ {t:'char',id:'liu',pos:'center',expr:'normal',outfit:'home'},
+ say(null,'劉小姐撕開維力榨醬麵的包裝，一邊打開電腦，打算這幾天好好「追劇」。'),
+ say(null,'網路的新聞頭條，卻讓她惺忪的眼睛呈現放大片的效果。'),
+ {t:'fx',id:'news'},{t:'sfx',id:'boom'},
+ {t:'char',id:'liu',pos:'center',expr:'shock',outfit:'home'},
+ say(null,'她的故鄉，出了一場重大交通意外。'),
+ say(null,'那輛曾載自己離開傷心地、前往臺北重新開始的火車，扭曲成了一堆廢鐵。'),
+ say(null,'乘客哭喊的景象，猶如災難片般在眼前上演。'),
+ {t:'sfx',id:'ring'},
+ say(null,'「鈴鈴鈴——」愛瘋的響聲穿破了思緒，喚醒了這位來自花蓮的都會女子。'),
+ say('弟弟（電話）','姊姊姊姊！媽媽受傷進醫院了！','phone'),
+ say(null,'另一頭傳來稚幼的聲音，那是她同母異父的弟弟，今年才小學四年級。'),
+ say(null,'劉小姐這時才知道，長期斷絕來往的母親在連假前到了一趟臺北。'),
+ say(null,'為了就是幫弟弟買他想要的動漫背包，今天一大早再趕火車回花蓮。'),
+ say(null,'結果好死不死，搭上了死亡列車。'),
+ {t:'char',id:'liu',pos:'center',expr:'angry',outfit:'home'},
+ say('劉小姐','（……果然還是沒把我放在眼裡。）','think'),
+ say(null,'這個生她的女人一向我行我素，完全依照自己的喜好過日子。'),
+ say(null,'身邊的男人一個換過一個，希望能依靠他們改善貧困的生活，卻往往反被欺詐：騙感情、騙肉體、騙金錢……'),
+ say(null,'女兒不想最後也成為母親交易的物品，所以跟她漸行漸遠。'),
+ {t:'char',id:'liu',pos:'center',expr:'sad',outfit:'home'},
+ say(null,'劉小姐盯著螢幕上「花蓮」兩個字，沉默了很久、很久。'),
+ say(null,'但這一天，血緣還是把她拉回了那條她親手斬斷的鐵路。'),
+ {t:'chapter',num:'三',title:'夏日花蓮'},
+ {t:'bg',src:BG.town,tone:'warm'},{t:'music',id:'warm'},
+ {t:'clearChars'},{t:'char',id:'liu',pos:'center',expr:'normal',outfit:'uniform'},
+ say(null,'——幾年前，花蓮。'),
+ say(null,'升上高三後，劉小姐一邊在花蓮市區補習考大學，一邊利用閒暇時間在名產店打工。'),
+ say('劉小姐','（希望順利考上大學後，可以帶點儲蓄到臺北開始新生活，擺脫母親的陰影。）','think'),
+ say(null,'努力半工半讀的她越來越受歡迎，不管在學校還是職場上都有極佳的人緣。'),
+ say(null,'甚至還收穫了一個男朋友——阿華。'),
+ {t:'clearChars'},{t:'char',id:'hua',pos:'center',expr:'grin'},
+ say(null,'阿華是一個阿美族青年，有著黝黑的皮膚和一口白牙。'),
+ say(null,'笑起來，閃閃發光，讓她迷戀不已。'),
+ {t:'char',id:'liu',pos:'left',expr:'soft',outfit:'uniform'},{t:'char',id:'hua',pos:'right',expr:'grin'},
+ say(null,'或許，兩個人可以相互支持走下去吧？'),
+ say(null,'她開始幻想與阿華在臺北共同打拼、結婚生子的那一天。'),
+ say(null,'但是，人生就如同一盒巧克力，你永遠無法知道下一粒是什麼味道。'),
+ say(null,'沉浸幸福的同時，打擊馬上跟上了腳步。'),
+ {t:'char',id:'tea',pos:'right',expr:'normal'},
+ say(null,'某一天，班導師跟她講，母親打電話來學校找她，希望女兒能回家一趟。'),
+ say('張老師','「我要再婚了，我答應小如從今以後我會好好重新過生活，希望她可以回來祝福我們！」'),
+ {t:'char',id:'tea',pos:'right',expr:'soft'},
+ say('張老師','她還說——「小如在我心中永遠是最重要的！」'),
+ {t:'char',id:'liu',pos:'left',expr:'sad',outfit:'uniform'},
+ say(null,'聽著班導師轉達的話語，多年堅硬的外殼慢慢軟化了下來。'),
+ say('劉小姐','（……結，或許該解了。）','think'),
+ {t:'chapter',num:'四',title:'歸途'},
+ {t:'bg',src:BG.town,tone:'dusk'},{t:'music',id:'warm'},
+ {t:'clearChars'},{t:'char',id:'liu',pos:'center',expr:'soft',outfit:'uniform'},
+ say(null,'補習班今晚提早下課，劉小姐打算先收拾行李，再跟阿華煮碗泡麵吃。'),
+ say('劉小姐','（我想利用母親的再婚宴席，向親戚介紹未來的伴侶。）','think'),
+ {t:'sfx',id:'msg'},
+ say(null,'但手機傳來的簡訊，卻讓她感到一頭霧水。'),
+ say('阿華（簡訊）','我這幾天要回山上部落照顧阿公阿嬤，不陪妳回去了。華','sms'),
+ {t:'char',id:'liu',pos:'center',expr:'shock',outfit:'uniform'},
+ {t:'choice',options:[
+  {text:'打了質問，又一個個刪除',lines:[say(null,'她在手機上打了一段長長的話，盯著螢幕半晌，又一個字一個字刪除。'),say('劉小姐','（……問了又能怎樣。）','think')]},
+  {text:'握緊手機，什麼也不問',lines:[say(null,'劉小姐盯著螢幕許久，最終沒有輸入任何一個字。'),say('劉小姐','（他要走就走，我早就習慣了。）','think')]}
+ ]},
+ say(null,'簡直莫名其妙。從來沒聽阿華關心過他家裡的事，怎麼現在變得這麼熱心了？'),
+ say(null,'其實這個男朋友最近總是對劉小姐若即若離，提早計畫好的約會也常常在前一天就突然取消，人更是高頻率的搞失蹤……。'),
+ say('劉小姐','（是步入冷卻期了嗎？還是……無法接受我的原生家庭呢？）','think'),
+ say(null,'用力甩掉頭髮上的水珠，劉小姐暫時把跟男友攤牌的想法拋一邊，先以喜事為主。'),
+ {t:'bg',src:BG.bus,tone:'day'},{t:'music',id:'main'},
+ {t:'clearChars'},{t:'char',id:'liu',pos:'center',expr:'normal',outfit:'uniform'},
+ say(null,'一大早，劉小姐提著大包小包去花蓮火車站搭客運，往鳳林鎮去。'),
+ say(null,'她對鳳林鎮的記憶，只停在與母親吵架的時候。'),
+ say(null,'那時她也是大包小包的，搭客運到花蓮市去。'),
+ say('劉小姐','（雖然沒有「少小離家老大回」的感慨……）','think'),
+ say(null,'但花蓮多年的獨自生活也為她添了不少憂愁，讓她在同年齡的女孩中看起來更加成熟。'),
+ say(null,'母親現在是什麼模樣？她終於找到對的人了嗎？'),
+ say(null,'巴士不斷的搖搖晃晃，閉目養神的女兒做如此想。'),
+ {t:'chapter',num:'五',title:'三合院'},
+ {t:'bg',src:BG.yard,tone:'warm'},{t:'music',id:'warm'},
+ {t:'clearChars'},{t:'char',id:'liu',pos:'center',expr:'sad',outfit:'uniform'},
+ say(null,'舊式三合院、公媽廳、自己的房間擺設——一切如舊。'),
+ say(null,'唯一重新裝潢的，是母親的房間。'),
+ say(null,'老家給劉小姐的感受是愛恨交織的。'),
+ say(null,'她在這裡度過了歡樂的童年、帶著滿滿的愁恨離開這裡。'),
+ say('劉小姐','（現在這個家即將多了一個新成員，或許還會有更多的新成員。）','think'),
+ say('劉小姐','（往好的地方想，有一個人願意付出愛與金錢照顧母親的下半輩子，我就沒有後顧之憂了。）','think'),
+ say('劉小姐','（可以跟阿華一起，完成自己的理想。）','think'),
+ say(null,'聽隔壁鄰居說，母親的再婚對象年紀比她小，兩人看起來就像一對母子。'),
+ say(null,'大家都在想，男方是不是覬覦那棟舊式三合院？'),
+ say(null,'但是人看起來又那麼憨厚，笑起來一口白牙閃閃發光。'),
+ say(null,'不但跟大家和睦相處，更常常從花蓮市區帶伴手禮分送給他們。'),
+ say(null,'唯一的缺點就是工作忙，所以他跟母親總是聚少離多。'),
+ say(null,'可喜可賀，今年終於要定下來了。'),
+ say(null,'男方與劉媽媽打算在家裡辦幾桌簡單的宴席請親朋好友，順便詔告天下——這個家從今以後有了一個男主人。'),
+ {t:'char',id:'liu',pos:'center',expr:'worried',outfit:'uniform'},
+ say(null,'劉小姐對「一口白牙」的特徵感到心癢。'),
+ say('劉小姐','（沒想到母女喜歡的男孩子，居然是同一個類型？）','think'),
+ say('劉小姐','（也太巧了吧！）','think'),
+ say(null,'但是，現實往往比故事還離奇。'),
+ {t:'chapter',num:'六',title:'婚紗照'},
+ {t:'bg',src:BG.room,tone:'warm'},{t:'music',id:'warm'},
+ {t:'clearChars'},{t:'char',id:'mom',pos:'right',expr:'happy'},{t:'char',id:'liu',pos:'left',expr:'normal',outfit:'uniform'},
+ say('母親','呀～'),
+ say(null,'母親神秘兮兮地推門進來，雙手抱著一個大包裹。'),
+ say(null,'她帶著新嫁娘般的羞澀，對女兒說：'),
+ say('母親','這是我跟他的婚紗照，打算明天請客時拿出來擺，妳先幫我鑑定一下這個人如何？'),
+ say(null,'母女倆合力將包裝紙撕開，組合好照片後——'),
+ say(null,'劉小姐覺得不對勁了。'),
+ {t:'fx',id:'flash'},{t:'fx',id:'shake'},{t:'sfx',id:'boom'},{t:'music',id:'dark'},
+ say(null,'照片中的新郎——'),
+ say(null,'一身黝黑皮膚、一口白牙。'),
+ {t:'char',id:'liu',pos:'left',expr:'angry',outfit:'uniform'},
+ say(null,'女兒的太陽穴忽然爆出了青筋。'),
+ say(null,'沉浸在歡喜中的母親，如同丈二金剛摸不著頭腦，還來不及問究竟是哪不對了。'),
+ say(null,'只看到劉小姐默默不語地重新整理行李，伴隨著塑膠袋摩挲摩挲的聲響。'),
+ {t:'char',id:'liu',pos:'left',expr:'cold',outfit:'uniform'},
+ say(null,'她抬起頭，回應母親：'),
+ say('劉小姐','媽，我有事要先回花蓮了，祝你們幸福！'),
+ {t:'char',id:'mom',pos:'right',expr:'shock'},
+ say(null,'在劉媽媽又驚又怒、茫然的眼神中，劉小姐再度揹起了大包小包，離開了三合院。'),
+ {t:'bg',src:BG.train,tone:'night'},{t:'music',id:'main'},
+ {t:'clearChars'},{t:'char',id:'liu',pos:'center',expr:'cold',outfit:'trip'},
+ say(null,'半年後，她依照原定計畫，順利考上臺北的大學，搭上了太魯閣號。'),
+ say(null,'不過，這次劉小姐只有買一張車票——'),
+ say('劉小姐','（而且是，單程的。）','think'),
+ say(null,'之後，她聽說母親在喜宴上控訴女兒的不孝。'),
+ say(null,'之後，她聽說那男人和母親將三合院改造成了民宿經營。'),
+ say(null,'之後，她聽說母親生了一個兒子。'),
+ say(null,'之後……，就沒有之後了。'),
+ say(null,'劉小姐決心將家鄉的所有一切封閉在自己心中。'),
+ say(null,'路，到此為止。'),
+ {t:'chapter',num:'七',title:'隧道'},
+ {t:'bg',src:BG.train,tone:'cold'},{t:'music',id:'dark'},
+ {t:'clearChars'},
+ say(null,'而現在——她坐在返回花蓮的列車上。'),
+ say(null,'火車進入隧道了。'),
+ {t:'fx',id:'tunnel'},
+ say(null,'眼前的一切，從光亮變成了黑暗。'),
+ say(null,'火車穿過隧道了。'),
+ say(null,'眼前的一切，從黑暗變回了光亮。'),
+ {t:'char',id:'liu',pos:'center',expr:'cold',outfit:'trip'},
+ say(null,'車廂中瀰漫著各式各樣的氣味跟聲音。'),
+ say(null,'有臺鐵便當的香味、珍珠奶茶的甜味、女人的香水味；'),
+ say(null,'同時也充滿了淚水的鹹味，和小小的啜泣聲。'),
+ say(null,'搭上這班自強號的乘客，並不都是享受花東之旅而來的。'),
+ say(null,'他們更多，是這場意外的受害者。'),
+ say(null,'這些人準備翻山越嶺去照顧傷者，或是去辦他們不願意辦的事。'),
+ say(null,'劉小姐也是其中一員。但她的思緒，飄向更遠的遠方去了……'),
+ say(null,'火車票近年越來越難買，她手邊這張來回票，還是網友好意換給她的。'),
+ say('劉小姐','（這條鐵路依舊還是同一條。承載我的傷痕與希望，並且運送我到另一個地方重新開始。）','think'),
+ say('劉小姐','（現在，這條鐵路再度將我送回那個傷心地。）','think'),
+ say('劉小姐','（不知道出軌的那輛列車……是不是我當初搭到臺北的那一輛？）','think'),
+ say(null,'閉目養神中的劉小姐輕輕拉了拉口罩。'),
+ say(null,'她今天的妝扮跟上班時一模一樣，要是被媒體拍攝也絕對不失禮的。'),
+ say(null,'她只煩惱一件事。'),
+ {t:'char',id:'liu',pos:'center',expr:'sad',outfit:'trip'},
+ say('劉小姐','（要是母親的情況無法挽回……那個未謀面的弟弟，需要我照顧嗎？）','think'),
+ say(null,'至於那個男人的問題——'),
+ {t:'char',id:'liu',pos:'center',expr:'cold',outfit:'trip'},
+ say('劉小姐','（我一點都不想去想。）','think'),
+ {t:'chapter',num:'八',title:'白牙'},
+ {t:'bg',src:BG.hosp,tone:'cold'},{t:'music',id:'main'},
+ {t:'clearChars'},
+ say(null,'從火車站搭計程車到醫院非常的快。'),
+ say(null,'劉小姐敏捷閃過所有記者，在傷者名單上檢索她最不想看到的名字。'),
+ say(null,'此時，背上輕輕被人拍了一下。'),
+ say(null,'劉小姐回頭一看——是一個揹著綠色背包的小男孩。'),
+ {t:'char',id:'bro',pos:'center',expr:'grin'},
+ say(null,'膚色，同樣黝黑。'),
+ say(null,'小男孩向劉小姐咧嘴一笑，露出閃閃發光的白牙。'),
+ say('弟弟','姊姊來了！太好了！我帶妳去找爸爸媽媽。'),
+ {t:'char',id:'liu',pos:'left',expr:'sad',outfit:'trip'},{t:'char',id:'bro',pos:'right',expr:'grin'},
+ say(null,'看著小朋友天真爛漫的樣子，她實在不願意表露任何情緒。'),
+ say('劉小姐','（而所有的事情，也跟這個小孩無關。所有的問題，都是大人惹出來的問題。）','think'),
+ say(null,'劉小姐被弟弟牽著走，不禁想到——'),
+ say('劉小姐','（這就是兩姊弟的第一次見面……真是好笑。）','think'),
+ {t:'clearChars'},
+ {t:'cg',src:CG.hospital},{t:'music',id:'warm'},
+ say(null,'走入病房後，只見一個中年婦女全身釘滿石膏，躺在床上。'),
+ say(null,'身體雖然無法動彈，水汪汪的大眼睛一眨一眨，像在跟身旁的男人表達情意。'),
+ say(null,'男人溫柔地輕撫她的髮絲，再來，是她的臉頰……'),
+ say(null,'真是一幅美麗的圖畫啊。'),
+ say(null,'這對深情的夫妻，發現了眼前這位手提名牌包、精明幹練的女性。'),
+ say(null,'胸中瞬間充滿了驚訝、疑惑、憤怒、悲傷……各種複雜的情緒。'),
+ say(null,'話，卻是一句也說不出來。'),
+ say(null,'劉小姐，則是冷眼盯著這個男人。'),
+ {t:'pause',ms:700},
+ say(null,'阿華——'),
+ say(null,'她的前男友。'),
+ say(null,'現在，是她的繼父了。'),
+ {t:'pause',ms:600},
+ say(null,'這場事故，重新將所有人聯繫在一塊。'),
+ say(null,'他們接下來的路，要如何走下去呢？'),
+ {t:'pause',ms:1200},
+ {t:'end'}
+];
+const CH_STARTS=[];SCRIPT.forEach((c,i)=>{if(c.t==='chapter')CH_STARTS.push({num:c.num,title:c.title,ptr:i});});
+/* ================= engine ================= */
+const NAME_COLORS={'劉小姐':'#e8879a','警衛':'#8fa3bf','弟弟':'#7ec98f','母親':'#d98f6a','阿華':'#e0a860','張老師':'#7fb7c9','弟弟（電話）':'#7ec98f','阿華（簡訊）':'#e0a860','新聞頭條':'#ff6b6b'};
+const S={ptr:0,typing:false,full:'',shown:0,timer:null,auto:false,skip:false,wait:false,started:false,ended:false};
+let chapOpen=false,choiceOpen=false,logOpen=false,autoT=null;
+const charLayer=$('charLayer'),bgA=$('bgA'),bgB=$('bgB'),bgWrap=$('bgWrap'),stage=$('stage');
+let bgFlip=false;
+function setBG(src,tone){
+ const show=bgFlip?bgA:bgB,hide=bgFlip?bgB:bgA;bgFlip=!bgFlip;
+ show.style.backgroundImage=`url("${src}")`;
+ bgWrap.className=tone?('t-'+tone):'';
+ show.classList.add('on');hide.classList.remove('on');
+}
+const slots={};
+function crossfadeSprite(cur,animate){
+ const holder=cur.el.querySelector('.sprite');
+ const key=spriteKey(cur.id,cur.expr,cur.outfit);
+ if(cur.key===key&&holder.children.length)return;
+ cur.key=key;
+ const url=SPRITE_T[key]||CIMG[key];
+ const olds=[...holder.children];
+ const im=new Image();im.dataset.skey=key;
+ im.onload=()=>{
+   if(!cur.el.isConnected)return;
+   if(!animate||!olds.length){holder.innerHTML='';im.style.opacity='1';holder.appendChild(im);}
+   else{
+     im.style.opacity='0';holder.appendChild(im);
+     requestAnimationFrame(()=>requestAnimationFrame(()=>{im.style.opacity='1';olds.forEach(o=>o.style.opacity='0');}));
+     setTimeout(()=>olds.forEach(o=>{if(o.parentNode)o.remove();}),420);
+   }
+ };
+ im.onerror=()=>{holder.innerHTML=svgFallback(cur.id,cur.expr,cur.outfit||'ol');};
+ im.src=url;
+}
+function setChar(c){
+ if(c.out){removeCharById(c.id);return;}
+ const pos=c.pos||'center';
+ let cur=slots[c.id];
+ if(!cur){
+   const el=document.createElement('div');el.className='char pos-'+pos;
+   el.innerHTML='<div class="sprite"></div>';
+   charLayer.appendChild(el);
+   cur=slots[c.id]={id:c.id,pos,expr:c.expr||'normal',outfit:c.outfit,el,key:null};
+   crossfadeSprite(cur,false);
+   requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('on')));
+   return;
+ }
+ if(cur.pos!==pos){cur.pos=pos;cur.el.className='char on pos-'+pos;}
+ const ne=c.expr||cur.expr,no=(c.outfit!==undefined)?c.outfit:cur.outfit;
+ if(ne!==cur.expr||no!==cur.outfit){cur.expr=ne;cur.outfit=no;crossfadeSprite(cur,true);}
+}
+function removeCharById(id){const cur=slots[id];if(!cur)return;delete slots[id];cur.el.classList.add('out');setTimeout(()=>cur.el.remove(),520);}
+function clearChars(){Object.keys(slots).forEach(removeCharById);}
+function doFx(id){
+ if(id==='flash'){const f=$('flash');f.classList.remove('go');void f.offsetWidth;f.classList.add('go');}
+ if(id==='shake'){stage.classList.remove('shake');void stage.offsetWidth;stage.classList.add('shake');}
+ if(id==='news'){const n=$('newsOv');n.classList.add('on');setTimeout(()=>n.classList.remove('on'),6000);}
+ if(id==='tunnel'){const t=$('tunnelFx');t.classList.remove('go');void t.offsetWidth;t.classList.add('go');setTimeout(()=>t.classList.remove('go'),5300);}
+}
+function showCG(src){const l=$('cgLayer');l.innerHTML='<img src="'+src+'" alt="">';l.classList.add('on');}
+function hideCG(){$('cgLayer').classList.remove('on');$('cgLayer').innerHTML='';}
+function showChapter(c){
+ chapOpen=true;sfx('chime');
+ $('chapPill').textContent='第'+c.num+'章　'+c.title;$('chapPill').classList.add('on');
+ const cc=$('chapCard');
+ cc.innerHTML='<div class="no">第'+c.num+'章</div><div class="ti">'+c.title+'</div><div class="line"></div><div class="hint">點 擊 繼 續</div>';
+ cc.classList.add('on');
+ const idx=CH_STARTS.findIndex(x=>x.num===c.num);
+ try{localStorage.setItem('xinlu_save',JSON.stringify({ptr:S.ptr}));
+  const mx=+localStorage.getItem('xinlu_max')||0;if(idx+1>mx)localStorage.setItem('xinlu_max',idx+1);}catch(e){}
+}
+function showChoice(c){
+ choiceOpen=true;const l=$('choiceLayer');
+ l.innerHTML='<div class="q">— 你會 —</div>';
+ c.options.forEach(op=>{
+  const b=document.createElement('button');b.textContent=op.text;
+  b.onclick=e=>{e.stopPropagation();choiceOpen=false;l.classList.remove('on');SCRIPT.splice(S.ptr,0,...op.lines);run();};
+  l.appendChild(b);
+ });
+ l.classList.add('on');
+}
+function typeText(text){
+ S.typing=true;S.full=text;S.shown=0;
+ $('nextInd').classList.remove('on');
+ clearInterval(S.timer);
+ S.timer=setInterval(()=>{
+  S.shown++;$('textbox').textContent=S.full.slice(0,S.shown);
+  if(S.shown>=S.full.length)finishType();
+ },28);
+}
+function finishType(){
+ clearInterval(S.timer);S.typing=false;
+ $('textbox').textContent=S.full;
+ $('nextInd').classList.add('on');
+ S.wait=false;
+ if(S.skip)autoT=setTimeout(run,110);
+ else if(S.auto)autoT=setTimeout(run,1500);
+}
+function showSay(c){
+ S.wait=true;
+ const d=$('dialog');d.classList.add('show');
+ d.className='show'+(c.cls?(' cls-'+c.cls):'');
+ const np=$('nameplate');
+ if(c.name){np.classList.remove('hide');np.textContent=c.name;np.style.setProperty('--npc',NAME_COLORS[c.name]||'#ffd9a0');}
+ else np.classList.add('hide');
+ const lb=$('logBody');const ln=document.createElement('div');ln.className='ln';ln.innerHTML=(c.name?('<b>'+c.name+'</b>'):'')+c.text;lb.appendChild(ln);lb.scrollTop=lb.scrollHeight;
+ typeText(c.text);
+}
+function run(){
+ if(S.ended)return;
+ clearTimeout(autoT);
+ if(S.ptr>=SCRIPT.length)return;
+ const c=SCRIPT[S.ptr++];
+ switch(c.t){
+  case 'bg':setBG(c.src,c.tone);run();break;
+  case 'music':AU.play(c.id);run();break;
+  case 'sfx':sfx(c.id);run();break;
+  case 'pause':S.wait=true;setTimeout(()=>{S.wait=false;run();},S.skip?60:c.ms);break;
+  case 'char':setChar(c);run();break;
+  case 'clearChars':clearChars();run();break;
+  case 'fx':doFx(c.id);run();break;
+  case 'cg':showCG(c.src);run();break;
+  case 'chapter':showChapter(c);break;
+  case 'choice':showChoice(c);break;
+  case 'say':showSay(c);break;
+  case 'end':showEnd();break;
+  default:run();
+ }
+}
+function advance(){
+ if(!S.started||S.ended)return;
+ if(logOpen){$('logModal').classList.remove('on');logOpen=false;return;}
+ if(chapOpen){chapOpen=false;$('chapCard').classList.remove('on');run();return;}
+ if(choiceOpen)return;
+ if(S.typing){finishType();return;}
+ if(S.wait)return;
+ run();
+}
+function showEnd(){
+ S.ended=true;$('dialog').classList.remove('show');
+ $('endScreen').classList.add('on');AU.play('title');
+}
+function resetTo(ptr){
+ S.ptr=ptr;S.ended=false;S.typing=false;S.wait=false;clearInterval(S.timer);clearTimeout(autoT);
+ clearChars();hideCG();$('newsOv').classList.remove('on');$('dialog').classList.remove('show');
+ $('endScreen').classList.remove('on');$('chapCard').classList.remove('on');chapOpen=false;choiceOpen=false;
+ $('choiceLayer').classList.remove('on');$('logBody').innerHTML='';
+ S.started=true;$('titleScreen').style.display='none';$('controls').classList.add('on');
+ run();
+}
+/* ================= UI ================= */
+$('game').addEventListener('click',e=>{
+ if(e.target.closest('#controls')||e.target.closest('#titleScreen')||e.target.closest('#chapSelect')||e.target.closest('#endScreen')||e.target.closest('#logModal')||e.target.closest('#choiceLayer'))return;
+ advance();
+});
+document.addEventListener('keydown',e=>{
+ if(e.code==='Space'||e.code==='Enter'){e.preventDefault();advance();}
+ if(e.key==='a'||e.key==='A')toggleAuto();
+});
+function toggleAuto(){S.auto=!S.auto;$('btnAuto').classList.toggle('act',S.auto);if(S.auto&&!S.typing&&!S.wait){clearTimeout(autoT);autoT=setTimeout(run,600);}}
+$('btnAuto').onclick=e=>{e.stopPropagation();toggleAuto();};
+$('btnSkip').onclick=e=>{e.stopPropagation();S.skip=!S.skip;$('btnSkip').classList.toggle('act',S.skip);};
+$('btnLog').onclick=e=>{e.stopPropagation();logOpen=true;$('logModal').classList.add('on');};
+$('logClose').onclick=e=>{e.stopPropagation();logOpen=false;$('logModal').classList.remove('on');};
+$('btnMusic').onclick=e=>{e.stopPropagation();AU.muted=!AU.muted;if(AU.master)AU.master.gain.value=AU.muted?0:AU.vol*.9;$('btnMusic').classList.toggle('act',!AU.muted);};
+$('vol').oninput=e=>{e.stopPropagation();AU.setVol(e.target.value/100);};
+$('vol').onclick=e=>e.stopPropagation();
+function startGame(ptr){
+ AU.init();if(AU.ctx.resume)AU.ctx.resume();AU.setVol($('vol').value/100);
+ $('btnMusic').classList.add('act');
+ resetTo(ptr);
+}
+$('btnStart').onclick=()=>startGame(0);
+$('btnCont').onclick=()=>{let p=0;try{p=JSON.parse(localStorage.getItem('xinlu_save')||'{}').ptr||0;}catch(e){}startGame(p);};
+$('btnChap').onclick=()=>{
+ const l=$('chapList');l.innerHTML='';
+ const mx=+localStorage.getItem('xinlu_max')||0;
+ CH_STARTS.forEach((ch,i)=>{
+  const b=document.createElement('button');b.textContent='第'+ch.num+'章　'+ch.title;
+  b.disabled=!(i===0||i<mx);
+  b.onclick=()=>{$('chapSelect').classList.remove('on');startGame(ch.ptr);};
+  l.appendChild(b);
+ });
+ $('chapSelect').classList.add('on');
+};
+$('chapBack').onclick=()=>$('chapSelect').classList.remove('on');
+$('btnAgain').onclick=()=>startGame(0);
+$('btnTitle2').onclick=()=>{
+ S.started=false;S.ended=false;clearChars();hideCG();
+ $('endScreen').classList.remove('on');$('controls').classList.remove('on');$('chapPill').classList.remove('on');
+ $('titleScreen').style.display='';refreshTitle();AU.play('title');
+};
+function refreshTitle(){
+ let has=false;try{has=!!JSON.parse(localStorage.getItem('xinlu_save')||'null');}catch(e){}
+ $('btnCont').disabled=!has;
+}
+$('titleScreen').querySelector('.bgimg').style.backgroundImage=`url("${BG.title}")`;
+refreshTitle();
+</script>
+</body>
+</html>
